@@ -26,20 +26,22 @@ import java.util.concurrent.Executors;
 public class App implements ApplicationRunner {
     @Value("${folderContainingLogs}")
     String dirToRead;
-    @Value("${folderContainingResolt}")
+    @Value("${folderContainingResult}")
     String dirToWrite;
+    @Value("${deleteLogFiles}")
+    boolean deleteLogFiles;
     private ArrayList<File> fileNameList = new ArrayList<>();
     private ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     @Override
     public void run(ApplicationArguments applicationArguments) throws Exception {
         File dir = new File(dirToRead);
-        while (true){
-            for (String fileName: dir.list()) {
+        while (true) {
+            for (String fileName : dir.list()) {
                 File logFile = new File(fileName);
-                if(!findFileInList(fileNameList,logFile)){
+                if (!findFileInList(fileNameList, logFile)) {
                     fileNameList.add(logFile);
-                    preparedHandled(fileName);
+                    preparedAndHandled(fileName);
                 }
             }
             try {
@@ -49,24 +51,26 @@ public class App implements ApplicationRunner {
         }
     }
 
-    private boolean findFileInList(List<File> list, File file){
+    private boolean findFileInList(List<File> list, File file) {
         boolean res = false;
-        for (File existFile : list){
+        for (File existFile : list) {
             if (existFile.getName().equals(file.getName()))
                 res = true;
         }
         return res;
     }
 
-    private void preparedHandled(String fileName) {
+    private void preparedAndHandled(String fileName) {
         File dir = new File(dirToRead);
         StatisticCollector statisticCollector = StatisticCollector.getNewStatisticCollector();
-        System.out.println(dir + "\\" + fileName);
-                executorService.execute(() -> {
-                    pars(new File(dir + "\\" + fileName), statisticCollector);
-                    XMLGenerator xmlGenerator = new XMLGenerator(fileName,dirToWrite);
-                    xmlGenerator.generatedXmlFileWithStatistic(statisticCollector.getUsers());
-                });
+        executorService.execute(() -> {
+            File file = new File(dir + "\\" + fileName);
+            pars(file, statisticCollector);
+            XMLGenerator xmlGenerator = new XMLGenerator(fileName, dirToWrite);
+            xmlGenerator.generatedXmlFileWithStatistic(statisticCollector.getUsers());
+            if (deleteLogFiles)
+                file.delete();
+        });
 
     }
 
@@ -77,7 +81,6 @@ public class App implements ApplicationRunner {
             Document document = builder.parse(file);
             Element root = document.getDocumentElement();
             NodeList list = root.getElementsByTagName("log");
-            System.out.println(list.getLength());
             for (int i = 0; i < list.getLength(); i++) {
                 String timestampText = ((Element) list.item(i)).getElementsByTagName("timestamp").item(0).getTextContent();
                 long timestamp = Long.parseLong(timestampText);

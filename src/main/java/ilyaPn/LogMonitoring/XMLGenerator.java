@@ -11,10 +11,7 @@ import javax.xml.bind.Marshaller;
 import java.io.*;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by ilyaP on 21.08.2018.
@@ -30,55 +27,53 @@ public class XMLGenerator {
         this.dirToWrite = dirToWrite;
     }
 
-    public void generatedXmlFileWithStatistic(ArrayList<User> users){
+    public void generatedXmlFileWithStatistic(ArrayList<User> users) {
         StringWriter writer = new StringWriter();
-        outputFill(users,output);
+        outputFill(users, output);
         JAXBContext context;
         try {
-
             context = JAXBContext.newInstance(LogdaysEntity.class);
             Marshaller marshaller = context.createMarshaller();
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
             marshaller.marshal(output, writer);
-            String result = writer.toString();
-            System.out.println(result);
-            fileWriter(result,fileName);
+            fileWriter(writer.toString(), fileName);
         } catch (JAXBException e) {
             e.printStackTrace();
         }
 
     }
 
-    public void outputFill(ArrayList<User> users, LogdaysEntity output){
+    public void outputFill(ArrayList<User> users, LogdaysEntity output) {
         ArrayList<LogdayEntity> logdayEntities = output.getLogday();
         Map<String, ArrayList<User>> map = splitByTime(users);
         output.setLogday(logdayEntities);
         ArrayList<String> keys = new ArrayList<>(map.keySet());
 
-        for (int i = 0; i < map.size() ; i++){
+        for (int i = 0; i < map.size(); i++) {
             LogdayEntity logdayEntity = new LogdayEntity();
             logdayEntity.setDay(keys.get(i));
             logdayEntities.add(logdayEntity);
             UsersEntity usersEntity = new UsersEntity();
             logdayEntity.setUsers(usersEntity);
             ArrayList<User> list = map.get(keys.get(i));
-            list.sort((o1, o2) -> o2.getId().compareTo(o1.getId()));
-            for (User user : list){
+            list.sort(Comparator.comparing(User::getId));
+            for (User user : list) {
                 UserEntity userEntity = new UserEntity();
-                userEntity.setAverage(user.getSumSeconds()/user.getHitCounter());
+                userEntity.setAverage(user.getSumSeconds() / user.getHitCounter());
                 userEntity.setURL(user.getURL());
                 userEntity.setId(user.getId());
                 usersEntity.getUser().add(userEntity);
             }
         }
     }
-    public Map<String,ArrayList<User>> splitByTime(ArrayList<User> users){
-        Map<String,ArrayList<User>> sharedLists = new HashMap<>();
-        for (User user : users){
-            String dateText = new Date(user.getTimestamp()*1000).toInstant().atZone(ZoneId.of("UTC")).
+
+    public Map<String, ArrayList<User>> splitByTime(ArrayList<User> users) {
+        Map<String, ArrayList<User>> sharedLists = new HashMap<>();
+        for (User user : users) {
+            String dateText = new Date(user.getTimestamp() * 1000).toInstant().atZone(ZoneId.of("UTC")).
                     format(DateTimeFormatter.ofPattern("dd-MMM-yyyy"));
-            ArrayList<User> listFromMap =  sharedLists.get(dateText);
-            if(listFromMap != null){
+            ArrayList<User> listFromMap = sharedLists.get(dateText);
+            if (listFromMap != null) {
                 listFromMap.add(user);
             } else {
                 ArrayList<User> list = new ArrayList<>();
@@ -89,8 +84,8 @@ public class XMLGenerator {
         return sharedLists;
     }
 
-    private void fileWriter(String text, String fileName){
-        File file = new File(dirToWrite + "\\"+"Avg_"+fileName);
+    private void fileWriter(String text, String fileName) {
+        File file = new File(dirToWrite + "\\" + "avg_" + fileName);
         try {
             BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(file));
             bufferedWriter.write(text);
